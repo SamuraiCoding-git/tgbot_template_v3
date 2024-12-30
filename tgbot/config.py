@@ -140,19 +140,24 @@ class Miscellaneous:
 
     Attributes
     ----------
-    other_params : str, optional
-        A string used to hold other various parameters as required (default is None).
+    start_reward : int
     """
 
-    other_params: str = None
+    start_reward: int
+
+    @staticmethod
+    def from_env(env: Env):
+        """
+        Creates the TgBot object from environment variables.
+        """
+        start_reward = env.int("START_REWARD")
+        return Miscellaneous(start_reward=start_reward)
 
 
 @dataclass
 class Config:
     """
     The main configuration class that integrates all the other configuration classes.
-
-    This class holds the other configuration classes, providing a centralized point of access for all settings.
 
     Attributes
     ----------
@@ -164,6 +169,8 @@ class Config:
         Holds the settings specific to the database (default is None).
     redis : Optional[RedisConfig]
         Holds the settings specific to Redis (default is None).
+    images : Optional[ImageConfig]
+        Holds the settings specific to image IDs (default is None).
     """
 
     tg_bot: TgBot
@@ -180,14 +187,12 @@ def load_config(path: str = None) -> Config:
     :return: Config object with attributes set as per environment variables.
     """
 
-    # Create an Env object.
-    # The Env object will be used to read environment variables.
     env = Env()
     env.read_env(path)
 
     return Config(
         tg_bot=TgBot.from_env(env),
-        # db=DbConfig.from_env(env),
-        # redis=RedisConfig.from_env(env),
-        misc=Miscellaneous(),
+        db=DbConfig.from_env(env),
+        redis=RedisConfig.from_env(env),
+        misc=Miscellaneous.from_env(env),
     )

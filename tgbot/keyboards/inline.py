@@ -3,13 +3,221 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-# This is a simple keyboard, that contains 2 buttons
-def very_simple_keyboard():
+class BackCallbackData(CallbackData, prefix="back"):
+    state: str
+
+def admin_keyboard():
     buttons = [
         [
-            InlineKeyboardButton(text="📝 Открыть свиток",
-                                 callback_data="create_order"),
-            InlineKeyboardButton(text="📋 Мои свитки", callback_data="my_orders"),
+            InlineKeyboardButton(text="Рассылка", callback_data="mailing")
+        ],
+        [
+            InlineKeyboardButton(text="Создать задание", callback_data="create_the_task"),
+        ],
+    ]
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=buttons,
+    )
+    return keyboard
+
+def admin_back_keyboard(state):
+    buttons = [
+        [
+            InlineKeyboardButton(text="🔙Назад", callback_data=BackCallbackData(state=state).pack())
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=buttons,
+    )
+    return keyboard
+
+def broadcast_creation_keyboard(broadcast_data: dict) -> InlineKeyboardMarkup:
+    buttons = [
+        [
+            InlineKeyboardButton(
+                text=f"Текст (RU){' ✅' if broadcast_data.get('text_ru') else ''}",
+                callback_data="set_broadcast_text_ru"
+            ),
+            InlineKeyboardButton(
+                text=f"Текст (EN){' ✅' if broadcast_data.get('text_en') else ''}",
+                callback_data="set_broadcast_text_en"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text=f"Кнопка (RU){' ✅' if broadcast_data.get('button_text_ru') else ''}",
+                callback_data="set_broadcast_button_ru"
+            ),
+            InlineKeyboardButton(
+                text=f"Кнопка (EN){' ✅' if broadcast_data.get('button_text_en') else ''}",
+                callback_data="set_broadcast_button_en"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text=f"Фото{' ✅' if broadcast_data.get('photo') else ''}",
+                callback_data="set_broadcast_photo"
+            ),
+            InlineKeyboardButton(
+                text=f"Видео{' ✅' if broadcast_data.get('video') else ''}",
+                callback_data="set_broadcast_video"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text=f"Альбом{' ✅' if broadcast_data.get('media_group') else ''}",
+                callback_data="set_broadcast_album"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text=f"Кнопка с ссылкой{' ✅' if broadcast_data.get('button_text') else ''}",
+                callback_data="set_broadcast_button"
+            ),
+            InlineKeyboardButton(
+                text=f"Задание{' ✅' if broadcast_data.get('task_id') else ''}",
+                callback_data="select_task_for_mailing"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="Сохранить и отправить",
+                callback_data="save_broadcast"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="Отменить",
+                callback_data="cancel_broadcast_creation"
+            ),
+        ]
+    ]
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+
+def mailing_keyboard(button_text, button_url):
+    buttons = [
+        [
+            InlineKeyboardButton(text=button_text, url=button_url)
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+def mailing_tasks_choice(tasks):
+    keyboard = InlineKeyboardBuilder()
+    for task in tasks:
+        keyboard.button(
+                text=task.titles,
+                callback_data=f"task_selected:{task.task_id}"
+        )
+
+    keyboard.adjust(1, True)
+    return keyboard.as_markup()
+
+def task_creation_keyboard(task_data: dict) -> InlineKeyboardMarkup:
+    """
+    Generates a keyboard for task creation, showing checkmarks for completed fields.
+
+    :param task_data: A dictionary containing the current task data from FSMContext.
+    :return: InlineKeyboardMarkup object for the task creation process.
+    """
+    buttons = [
+        [
+            InlineKeyboardButton(
+                text=f"Название (RU){' ✅' if task_data.get('title_ru') else ''}",
+                callback_data="set_task_title_ru"
+            ),
+            InlineKeyboardButton(
+                text=f"Название (EN){' ✅' if task_data.get('title_en') else ''}",
+                callback_data="set_task_title_en"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text=f"Описание (RU){' ✅' if task_data.get('description_ru') else ''}",
+                callback_data="set_task_description_ru"
+            ),
+            InlineKeyboardButton(
+                text=f"Описание (EN){' ✅' if task_data.get('description_en') else ''}",
+                callback_data="set_task_description_en"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text=f"Обложка{' ✅' if task_data.get('cover') else ''}",
+                callback_data="set_task_cover"
+            ),
+            InlineKeyboardButton(
+                text=f"Ссылка{' ✅' if task_data.get('link') else ''}",
+                callback_data="set_task_link"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text=f"Баланс{' ✅' if task_data.get('balance') else ''}",
+                callback_data="set_task_balance"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="Сохранить",
+                callback_data="save_task"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="Отменить",
+                callback_data="cancel_task_creation"
+            ),
+        ]
+    ]
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
+    return keyboard
+
+
+class Tasks(CallbackData, prefix="tasks"):
+    task_id: int
+
+def tasks_list_keyboard(tasks):
+    keyboard = InlineKeyboardBuilder()
+    for task in tasks:
+        keyboard.button(text=task[1], callback_data=Tasks(task_id=task[0]).pack())
+    keyboard.button(text="🔙Назад", callback_data="back")
+    keyboard.adjust(1)
+    return keyboard.as_markup()
+
+
+def task_keyboard(i18n, link, title):
+    buttons = [
+        [
+            InlineKeyboardButton(text=title, url=link),
+        ],
+        [
+            InlineKeyboardButton(text=i18n.button.check_task(), callback_data="check_task"),
+        ],
+        [
+            InlineKeyboardButton(text=i18n.button.back(), callback_data="back")
+        ]
+    ]
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=buttons,
+    )
+    return keyboard
+
+class Language(CallbackData, prefix="language"):
+    lang_code: str
+
+
+def language_keyboard():
+    buttons = [
+        [
+            InlineKeyboardButton(text="🇷🇺", callback_data=Language(lang_code="ru").pack()),
+            InlineKeyboardButton(text="🇬🇧", callback_data=Language(lang_code="en").pack()),
         ],
     ]
 
@@ -19,55 +227,50 @@ def very_simple_keyboard():
     return keyboard
 
 
-# This is the same keyboard, but created with InlineKeyboardBuilder (preferred way)
-def simple_menu_keyboard():
-    # First, you should create an InlineKeyboardBuilder object
-    keyboard = InlineKeyboardBuilder()
+def main_keyboard(i18n):
+    buttons = [
+        [
+            InlineKeyboardButton(text=i18n.button.tasks(), callback_data="tasks"),
+            InlineKeyboardButton(text=i18n.button.friends(), callback_data="friends"),
+        ],
+        [
+            InlineKeyboardButton(text=i18n.button.leaders(), callback_data="leaders"),
+            InlineKeyboardButton(text=i18n.button.profile(), callback_data="profile"),
+        ],
+        [
+            InlineKeyboardButton(text="🇬🇧" if i18n.locale == "ru" else "🇷🇺", callback_data="language")
+        ]
+    ]
 
-    # You can use keyboard.button() method to add buttons, then enter text and callback_data
-    keyboard.button(
-        text="📝 Открыть свиток",
-        callback_data="create_order"
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=buttons,
     )
-    keyboard.button(
-        text="📋 Мои свитки",
-        # In this simple example, we use a string as callback_data
-        callback_data="my_orders"
+    return keyboard
+
+def back_keyboard(i18n):
+    buttons = [
+        [
+            InlineKeyboardButton(text=i18n.button.back(), callback_data="back")
+        ]
+    ]
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=buttons,
     )
-
-    # If needed you can use keyboard.adjust() method to change the number of buttons per row
-    # keyboard.adjust(2)
-
-    # Then you should always call keyboard.as_markup() method to get a valid InlineKeyboardMarkup object
-    return keyboard.as_markup()
+    return keyboard
 
 
-# For a more advanced usage of callback_data, you can use the CallbackData factory
-class OrderCallbackData(CallbackData, prefix="order"):
-    """
-    This class represents a CallbackData object for orders.
+def referral_keyboard(i18n, user_id):
+    buttons = [
+        [
+          InlineKeyboardButton(text=i18n.button.invite(), url=f'https://t.me/share/url?url=https://t.me/tsar_dynasty_bot?start={user_id}')
+        ],
+        [
+            InlineKeyboardButton(text=i18n.button.back(), callback_data="back")
+        ]
+    ]
 
-    - When used in InlineKeyboardMarkup, you have to create an instance of this class, run .pack() method, and pass to callback_data parameter.
-
-    - When used in InlineKeyboardBuilder, you have to create an instance of this class and pass to callback_data parameter (without .pack() method).
-
-    - In handlers you have to import this class and use it as a filter for callback query handlers, and then unpack callback_data parameter to get the data.
-
-    # Example usage in simple_menu.py
-    """
-    order_id: int
-
-
-def my_orders_keyboard(orders: list):
-    # Here we use a list of orders as a parameter (from simple_menu.py)
-
-    keyboard = InlineKeyboardBuilder()
-    for order in orders:
-        keyboard.button(
-            text=f"📝 {order['title']}",
-            # Here we use an instance of OrderCallbackData class as callback_data parameter
-            # order id is the field in OrderCallbackData class, that we defined above
-            callback_data=OrderCallbackData(order_id=order["id"])
-        )
-
-    return keyboard.as_markup()
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=buttons,
+    )
+    return keyboard

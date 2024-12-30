@@ -1,7 +1,7 @@
 aiogram~=3.0
 environs~=9.0
-redis
-betterlogging
+redis~=5.0.8
+betterlogging~=1.0.0
 
 # # For enabling api:
 # backoff
@@ -12,3 +12,12 @@ betterlogging
 # sqlalchemy~=2.0
 # alembic~=1.0
 # asyncpg
+
+aiogram_i18n~=1.4
+SQLAlchemy~=2.0.32
+typing_extensions~=4.12.2
+aiohttp~=3.10.5
+yarl~=1.9.4
+aioredis~=2.0.1
+celery~=5.4.0
+requests~=2.32.3

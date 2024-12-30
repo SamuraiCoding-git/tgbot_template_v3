@@ -3,20 +3,34 @@ import logging
 
 import betterlogging as bl
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.storage.redis import RedisStorage, DefaultKeyBuilder
+from aiogram_i18n import I18nMiddleware
 
+from infrastructure.database.models import Base
+from infrastructure.database.redis_client import RedisClient
+from infrastructure.database.setup import create_engine, create_session_pool
 from tgbot.config import load_config, Config
 from tgbot.handlers import routers_list
 from tgbot.middlewares.config import ConfigMiddleware
-from tgbot.services import broadcaster
+from tgbot.middlewares.database import DatabaseMiddleware
+from tgbot.middlewares.redis import RedisMiddleware
+from tgbot.middlewares.translations import TgUserManager
+from aiogram_i18n.cores import FluentRuntimeCore
+# from tgbot.services import broadcaster
 
 
 async def on_startup(bot: Bot, admin_ids: list[int]):
-    await broadcaster.broadcast(bot, admin_ids, "Бот был запущен")
+    pass
+    # await broadcaster.broadcast(bot, admin_ids, "Бот был запущен")
+
+async def on_shutdown(redis_client: RedisClient):
+    await redis_client.close()
 
 
-def register_global_middlewares(dp: Dispatcher, config: Config, session_pool=None):
+
+def register_global_middlewares(dp: Dispatcher, config: Config, session_pool=None, redis=None):
     """
     Register global middlewares for the given dispatcher.
     Global middlewares here are the ones that are applied to all the handlers (you specify the type of update)
@@ -29,7 +43,8 @@ def register_global_middlewares(dp: Dispatcher, config: Config, session_pool=Non
     """
     middleware_types = [
         ConfigMiddleware(config),
-        # DatabaseMiddleware(session_pool),
+        DatabaseMiddleware(session_pool),
+        RedisMiddleware(redis)
     ]
 
     for middleware_type in middleware_types:
@@ -83,21 +98,45 @@ def get_storage(config):
         return MemoryStorage()
 
 
+async def create_tables(engine):
+    async with engine.begin() as conn:
+        logging.info("Creating tables if not exist...")
+        await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+
+
 async def main():
     setup_logging()
 
     config = load_config(".env")
     storage = get_storage(config)
 
-    bot = Bot(token=config.tg_bot.token, parse_mode="HTML")
+    bot = Bot(token=config.tg_bot.token, default=DefaultBotProperties(parse_mode='HTML'))
     dp = Dispatcher(storage=storage)
+
+    engine = create_engine(config.db)
+    session_pool = create_session_pool(engine)
+
+    redis = RedisClient(config.redis.dsn())
+    await redis.connect()
+
+    i18n_middleware = I18nMiddleware(
+        core=FluentRuntimeCore("tgbot/locales"),
+        default_locale="ru",
+        manager=TgUserManager(session_pool, redis)
+    )
+    i18n_middleware.setup(dp)
+
+    await create_tables(engine)
 
     dp.include_routers(*routers_list)
 
-    register_global_middlewares(dp, config)
+    register_global_middlewares(dp, config, session_pool, redis)
 
     await on_startup(bot, config.tg_bot.admin_ids)
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await on_shutdown(redis)
 
 
 if __name__ == "__main__":

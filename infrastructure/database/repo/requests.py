@@ -2,8 +2,11 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from infrastructure.database.redis_client import RedisClient
+from infrastructure.database.repo.referrals import ReferralsRepo
+from infrastructure.database.repo.tasks import TasksRepo
+from infrastructure.database.repo.user_tasks import UserTaskRepo
 from infrastructure.database.repo.users import UserRepo
-from infrastructure.database.setup import create_engine
 
 
 @dataclass
@@ -15,36 +18,26 @@ class RequestsRepo:
     """
 
     session: AsyncSession
+    redis: RedisClient
 
     @property
     def users(self) -> UserRepo:
         """
         The User repository sessions are required to manage user operations.
         """
-        return UserRepo(self.session)
+        return UserRepo(self.session, self.redis)
 
-
-if __name__ == "__main__":
-    from infrastructure.database.setup import create_session_pool
-    from tgbot.config import Config
-
-    async def example_usage(config: Config):
+    @property
+    def referrals(self) -> ReferralsRepo:
         """
-        Example usage function for the RequestsRepo class.
-        Use this function as a guide to understand how to utilize RequestsRepo for managing user data.
-        Pass the config object to this function for initializing the database resources.
-        :param config: The config object loaded from your configuration.
+        The User repository sessions are required to manage user operations.
         """
-        engine = create_engine(config.db)
-        session_pool = create_session_pool(engine)
+        return ReferralsRepo(self.session, self.redis)
 
-        async with session_pool() as session:
-            repo = RequestsRepo(session)
+    @property
+    def tasks(self) -> TasksRepo:
+        return TasksRepo(self.session, self.redis)
 
-            # Replace user details with the actual values
-            user = await repo.users.get_or_create_user(
-                user_id=12356,
-                full_name="John Doe",
-                language="en",
-                username="johndoe",
-            )
+    @property
+    def user_tasks(self) -> UserTaskRepo:
+        return UserTaskRepo(self.session)

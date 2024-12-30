@@ -1,0 +1,16 @@
+{
+  "leaderboard": [
+      {
+        "user_id": 1111111,
+        "place": 1,
+        "balance": 1932980484
+      },
+      {
+        "user_id": 1111111,
+        "place": 2,
+        "balance": 1932980484
+      },
+      ...
+  ],
+  "place": 7
+}
